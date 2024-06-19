@@ -6,13 +6,17 @@ from datetime import datetime
 
 from functools import reduce
 
+
 @dataclass
 class Commit:
     sha: str
     message: str
     timestamp: datetime
+    url: str
+
     def __str__(self) -> str:
-        return f"{self.timestamp: }\n{self.message}"
+        return f"{self.timestamp.date()}: {self.message}\n   URL: {self.url}"
+
 
 @dataclass
 class Repo:
@@ -20,12 +24,14 @@ class Repo:
     description: str
     created: datetime
     commits: list[Commit]
+
     def __str__(self) -> str:
         return f"{self.name}, {self.description},{self.created}\n{self.commits}"
 
 
 def parse_iso_generous(s: str) -> datetime:
     return datetime.strptime(s, "%Y-%m-%dT%H:%M:%Sz")
+
 
 def gh_api(path, paginate=False, method="GET", **kwargs):
     cmd = ["gh", "api", path, "--method", method]
@@ -101,12 +107,16 @@ def get_main_repos() -> list[Repo]:
                 root = item["parent"]
 
             created = parse_iso_generous(root["createdAt"])
-            main_repos.append(Repo(root["nameWithOwner"], root["description"], created, []))
+            main_repos.append(
+                Repo(root["nameWithOwner"], root["description"], created, [])
+            )
 
     return main_repos
 
 
-def get_commits(repo: str, author: str, since: datetime, until: datetime) -> list[Commit]:
+def get_commits(
+    repo: str, author: str, since: datetime, until: datetime
+) -> list[Commit]:
     """
     gh api /repos/azeemba/azeemba.com/commits --method GET --field author="azeemba" --field per_page=1 --cache 1h
     """
@@ -126,8 +136,9 @@ def get_commits(repo: str, author: str, since: datetime, until: datetime) -> lis
         return Commit(
             commit["sha"],
             commit["commit"]["message"],
-            parse_iso_generous(commit["commit"]["author"]["date"]))
+            parse_iso_generous(commit["commit"]["author"]["date"]),
+            commit["html_url"],
+        )
 
     commits = [makeLightCommit(c) for c in commits_json]
     return commits
-
